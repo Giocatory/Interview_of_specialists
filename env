@@ -1,0 +1,7 @@
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.0-flash-exp
+DATABASE_URL=sqlite:///./academy_hr.db
+TELEGRAM_BOT_TOKEN=
+HOST=127.0.0.1
+PORT=8000
+DEBUG=True

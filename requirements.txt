@@ -1,0 +1,15 @@
+fastapi[all]
+uvicorn[standard]
+google-generativeai
+python-dotenv
+jinja2
+python-multipart
+aiofiles
+google-genai
+aiofiles
+sqlalchemy
+alembic
+python-telegram-bot
+requests
+psycopg2-binary
+psycopg2

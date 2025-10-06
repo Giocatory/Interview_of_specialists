@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Нейро-HR - AI Собеседования</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .message {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .system-message {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .user-message {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+            text-align: right;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .progress {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .feedback {
+            background: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>🧠 Нейро-HR</h1>
+        <div id="chat"></div>
+        <div class="input-container">
+            <input type="text" id="message" placeholder="Введите ваш ответ..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" id="sendBtn">Отправить</button>
+        </div>
+        <div id="progress" class="progress"></div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let currentState = 'start'; // start, position, interview, complete
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message');
+            const message = input.value.trim();
+            const button = document.getElementById('sendBtn');
+            
+            if (!message) return;
+
+            // Добавляем сообщение пользователя
+            addMessage('Вы', message, 'user');
+            input.value = '';
+            button.disabled = true;
+
+            try {
+                if (currentState === 'start') {
+                    if (message.toLowerCase().includes('да') || message.toLowerCase().includes('начать')) {
+                        const response = await axios.post('/api/start_interview', {start: true});
+                        sessionId = response.data.session_id;
+                        addMessage('Система', response.data.message, 'system');
+                        currentState = 'position';
+                        updateProgress('Укажите желаемую позицию (например: Python middle, Java developer, Frontend developer)');
+                    } else {
+                        addMessage('Система', 'Для начала собеседования ответьте "Да" или "Начать"', 'system');
+                    }
+                } else if (currentState === 'position') {
+                    const response = await axios.post('/api/set_position', {
+                        session_id: sessionId,
+                        position: message
+                    });
+                    addMessage('Система', `Позиция: ${response.data.position}\n\n${response.data.question}`, 'system');
+                    currentState = 'interview';
+                    updateProgress(`Вопрос ${response.data.current_question} из ${response.data.total_questions}`);
+                } else if (currentState === 'interview') {
+                    const response = await axios.post('/api/answer_question', {
+                        session_id: sessionId,
+                        answer: message
+                    });
+                    
+                    if (response.data.interview_complete) {
+                        addMessage('Система', '📊 Результаты собеседования:\n\n' + response.data.feedback, 'feedback');
+                        currentState = 'complete';
+                        updateProgress(`Собеседование завершено! Ответы на ${response.data.total_questions} вопросов`);
+                    } else {
+                        addMessage('Система', response.data.question, 'system');
+                        updateProgress(`Вопрос ${response.data.current_question} из ${response.data.total_questions}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Система', 'Произошла ошибка. Пожалуйста, попробуйте еще раз.', 'system');
+            } finally {
+                button.disabled = false;
+                input.focus();
+            }
+        }
+
+        function addMessage(sender, text, type = 'system') {
+            const chat = document.getElementById('chat');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.innerHTML = `<strong>${sender}:</strong><br>${text}`;
+            chat.appendChild(messageDiv);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function updateProgress(text) {
+            const progress = document.getElementById('progress');
+            progress.textContent = text;
+        }
+
+        // Начальное сообщение
+        addMessage('Система', 'Добро пожаловать в Нейро-HR! Готовы начать собеседование? (Ответьте "Да" или "Начать")', 'system');
+        
+        // Фокус на input
+        document.getElementById('message').focus();
+    </script>
+</body>
+</html>
